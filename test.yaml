@@ -1,0 +1,6 @@
+name: test
+description: A test YAML file
+version: 1.0
+features:
+  - feature1
+  - feature2
