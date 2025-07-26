@@ -1,5 +1,5 @@
 'use client';
-
+// This file is the main entry point for the chat application, handling user interactions, message sending, and conversation management.
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { PaperAirplaneIcon, PaperClipIcon } from '@heroicons/react/24/solid';
