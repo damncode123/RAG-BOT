@@ -1,13 +1,14 @@
 # FastAPI and other module imports
-from fastapi import APIRouter, File, UploadFile, Depends, BackgroundTasks, HTTPException
+from fastapi import APIRouter, File, UploadFile, Depends, BackgroundTasks, HTTPException, Form
 from api.auth import get_current_user                      # Dependency to get current authenticated user
-from db.models import save_file_metadata                   # Function to save metadata to DB
+from db.models import save_file_metadata, add_message_objects_to_conversation  # Function to save metadata to DB
 from ingestion.pipeline import process_file                # Function that processes the uploaded file
 from api.notifications import send_notification            # Function to notify the user
 import datetime                                             # Used for timestamping
 import logging                                              # For logging info, warnings, errors
 import mimetypes                                            # (Not used here, but typically for MIME type detection)
 import os                                                   # For file extension handling
+import uuid                                                 # For generating unique IDs
 
 # Initialize router instance for API route grouping
 router = APIRouter()
@@ -122,11 +123,13 @@ def validate_file(file: UploadFile) -> dict:
 async def upload_file(
     background_tasks: BackgroundTasks,
     user=Depends(get_current_user),
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    conversation_id: str = Form(None)
 ):
     """
     API endpoint to upload a file.
     File is validated, saved, and processed in the background.
+    Creates upload messages in the conversation.
     """
     try:
         logging.info("[UPLOAD] Starting upload endpoint")
@@ -151,25 +154,100 @@ async def upload_file(
             raise HTTPException(status_code=400, detail="File is empty")
         
         # Step 4: Save file metadata (e.g., filename, user, upload time)
-        uploaded_at = datetime.datetime.utcnow()
+        uploaded_at = datetime.datetime.now(datetime.timezone.utc)
         save_file_metadata(user["id"], file_info['filename'], uploaded_at)
         logging.info("[UPLOAD] File metadata saved")
 
-        # Step 5: Define background task that processes the file and notifies the user
+        # Step 5: Generate unique processing ID
+        processing_id = str(uuid.uuid4())
+
+        # Step 6: Create upload message in conversation if conversation_id provided
+        upload_message_id = None
+        if conversation_id:
+            try:
+                # Create upload message
+                upload_message = {
+                    "id": str(uuid.uuid4()),
+                    "text": f"📄 **File Upload**\n\n**Filename:** {file_info['filename']}\n**Size:** {file_size // 1024:.1f} KB\n**Status:** Processing...\n\nI'm analyzing your document and creating embeddings. This may take a few moments.",
+                    "isUser": False,
+                    "timestamp": uploaded_at.isoformat(),
+                    "type": "upload_card",
+                    "metadata": {
+                        "filename": file_info['filename'],
+                        "file_size": file_size,
+                        "processing_id": processing_id,
+                        "status": "processing"
+                    }
+                }
+
+                add_message_objects_to_conversation(conversation_id, [upload_message])
+                upload_message_id = upload_message["id"]
+                logging.info(f"[UPLOAD] Upload message added to conversation {conversation_id}")
+            except Exception as e:
+                logging.warning(f"[UPLOAD] Failed to add upload message to conversation: {e}")
+
+        # Step 7: Define background task that processes the file and updates the conversation
         def pipeline_and_notify():
             try:
+                # Process the file
                 process_file(contents, file_info['filename'], user["id"])
+
+                # Update conversation with success message if conversation_id provided
+                if conversation_id and upload_message_id:
+                    try:
+                        success_message = {
+                            "id": str(uuid.uuid4()),
+                            "text": f"✅ **File Processing Complete**\n\n**{file_info['filename']}** has been successfully processed and embedded into the knowledge base.\n\nYou can now ask questions about this document!",
+                            "isUser": False,
+                            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                            "type": "upload_success_card",
+                            "metadata": {
+                                "filename": file_info['filename'],
+                                "processing_id": processing_id,
+                                "status": "completed"
+                            }
+                        }
+                        add_message_objects_to_conversation(conversation_id, [success_message])
+                        logging.info(f"[UPLOAD] Success message added to conversation {conversation_id}")
+                    except Exception as e:
+                        logging.error(f"[UPLOAD] Failed to add success message to conversation: {e}")
+
                 send_notification(user["id"], f"Your file '{file_info['filename']}' has been processed and is ready for queries.")
+
             except Exception as e:
                 logging.error(f"[UPLOAD] Background processing failed: {e}")
+
+                # Update conversation with error message if conversation_id provided
+                if conversation_id and upload_message_id:
+                    try:
+                        error_message = {
+                            "id": str(uuid.uuid4()),
+                            "text": f"❌ **File Processing Failed**\n\n**{file_info['filename']}** could not be processed.\n\n**Error:** {str(e)}\n\nPlease try uploading the file again.",
+                            "isUser": False,
+                            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                            "type": "upload_error_card",
+                            "metadata": {
+                                "filename": file_info['filename'],
+                                "processing_id": processing_id,
+                                "status": "failed",
+                                "error": str(e)
+                            }
+                        }
+                        add_message_objects_to_conversation(conversation_id, [error_message])
+                        logging.info(f"[UPLOAD] Error message added to conversation {conversation_id}")
+                    except Exception as e:
+                        logging.error(f"[UPLOAD] Failed to add error message to conversation: {e}")
+
                 send_notification(user["id"], f"Error processing file '{file_info['filename']}': {str(e)}")
 
-        # Step 6: Run background task (non-blocking)
+        # Step 8: Run background task (non-blocking)
         background_tasks.add_task(pipeline_and_notify)
 
-        # Step 7: Return response
+        # Step 9: Return response
         return {
             "message": "File received, processing started.",
+            "processing_id": processing_id,
+            "upload_message_id": upload_message_id,
             "file_info": {
                 "filename": file_info['filename'],
                 "size_bytes": file_size,

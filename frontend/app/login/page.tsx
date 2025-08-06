@@ -1,170 +1,202 @@
-'use client'; // Enables client-side rendering in Next.js 13+ app directory
+'use client';
 
 import { useState } from 'react';
-import { auth } from '../services/api'; // Custom API service for login/register
-import { useRouter } from 'next/navigation'; // For programmatic navigation
+import { auth } from '../services/api';
+import { useRouter } from 'next/navigation';
+import { EyeIcon, EyeSlashIcon, SparklesIcon, UserIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function LoginPage() {
-  // State variables to manage user input and app state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false); // toggle login/register mode
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const router = useRouter(); // Next.js router for navigation
+  const router = useRouter();
 
-  // Handle form submission for both login and registration
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // Prevent default form submission behavior
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setError('');
-    setIsLoading(true); // Show loading spinner or disable button
+    setIsLoading(true);
 
     try {
-      // Registration flow
       if (isRegistering) {
         if (password !== confirmPassword) {
           throw new Error('Passwords do not match');
         }
-        console.log('Attempting registration with:', { email });
         await auth.register(email, password);
-        console.log('Registration successful, attempting login...');
       }
 
-      // Login flow
-      console.log('Attempting login with:', { email });
       const result = await auth.login(email, password);
-      console.log('Login successful:', result);
-
-      localStorage.setItem('email', email); // Store email in localStorage
-      router.push('/'); // Navigate to home/dashboard
-    } catch (err: any) {
-      // Set error message depending on the failure type
-      if (err.message === 'Passwords do not match') {
-        setError(err.message);
-      } else {
-        setError(
-          err.response?.data?.detail ||
-            (isRegistering
-              ? 'Registration failed. Please try again.'
-              : 'Login failed. Please try again.')
-        );
-      }
+      localStorage.setItem('email', email);
+      router.push('/');
+    } catch (err) {
+      setError(
+        err.message === 'Passwords do not match'
+          ? err.message
+          : err.response?.data?.detail ||
+            (isRegistering ? 'Registration failed' : 'Login failed')
+      );
     } finally {
-      setIsLoading(false); // Reset loading state
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        {/* Title and switch between login/register */}
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            {isRegistering ? 'Create an Account' : 'Sign in to RAG Bot'}
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            {/* Toggle between login/register form */}
-            {isRegistering ? 'Already have an account?' : "Don't have an account?"}{' '}
-            <button
-              type="button"
-              onClick={() => {
-                setIsRegistering(!isRegistering);
-                setError('');
-                setEmail('');
-                setPassword('');
-                setConfirmPassword('');
-              }}
-              className="font-medium text-primary-600 hover:text-primary-500"
-            >
-              {isRegistering ? 'Sign in' : 'Register here'}
-            </button>
+    <div className="min-h-screen w-full overflow-hidden flex items-center justify-center px-4 py-8 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 relative">
+      <div className="absolute inset-0 overflow-hidden z-0">
+        <div className="absolute top-0 right-0 w-80 h-80 rounded-full opacity-20 gradient-primary transform translate-x-16 -translate-y-16"></div>
+        <div className="absolute bottom-0 left-0 w-80 h-80 rounded-full opacity-20 gradient-secondary transform -translate-x-16 translate-y-16"></div>
+      </div>
+
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeToggle />
+      </div>
+
+      <div className="w-full max-w-lg space-y-6 z-10">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-3xl gradient-primary flex items-center justify-center mx-auto mb-4 shadow-xl">
+            <SparklesIcon className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">RAG Bot</h2>
+          <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+            {isRegistering ? 'Create Account' : 'Welcome Back'}
+          </h3>
+          <p className="text-base text-slate-600 dark:text-slate-300">
+            {isRegistering
+              ? 'Join the future of AI-powered assistance'
+              : 'Sign in to continue your AI journey'}
           </p>
         </div>
 
-        {/* Form for login/register */}
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            {/* Email input */}
-            <div>
-              <label htmlFor="email-address" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="email-address"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+        <div className="bg-white/90 dark:bg-slate-800/90 rounded-3xl p-8 shadow-xl border border-slate-200 dark:border-slate-700 backdrop-blur-sm">
+          <div className="flex justify-center mb-6">
+            <div className="flex w-full max-w-xs bg-slate-100 dark:bg-slate-700 rounded-2xl p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRegistering(false);
+                  setError('');
+                  setEmail('');
+                  setPassword('');
+                  setConfirmPassword('');
+                }}
+                className={`flex-1 py-2 font-semibold rounded-xl transition-all text-sm ${
+                  !isRegistering
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRegistering(true);
+                  setError('');
+                  setEmail('');
+                  setPassword('');
+                  setConfirmPassword('');
+                }}
+                className={`flex-1 py-2 font-semibold rounded-xl transition-all text-sm ${
+                  isRegistering
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Register
+              </button>
             </div>
-
-            {/* Password input */}
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-
-            {/* Confirm password field only shown in registration mode */}
-            {isRegistering && (
-              <div>
-                <label htmlFor="confirm-password" className="sr-only">
-                  Confirm Password
-                </label>
-                <input
-                  id="confirm-password"
-                  name="confirm-password"
-                  type="password"
-                  autoComplete="new-password"
-                  required={isRegistering}
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                  placeholder="Confirm Password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
-              </div>
-            )}
           </div>
 
-          {/* Display error message if any */}
-          {error && (
-            <div className="text-red-500 text-sm text-center">{error}</div>
-          )}
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div>
+              <label htmlFor="email" className="block text-sm font-semibold text-slate-900 dark:text-white">Email</label>
+              <div className="relative">
+                <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="email"
+                  id="email"
+                  required
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+            </div>
 
-          {/* Submit button */}
-          <div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-semibold text-slate-900 dark:text-white">Password</label>
+              <div className="relative">
+                <LockClosedIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  required
+                  className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeSlashIcon className="w-5 h-5 text-slate-400" /> : <EyeIcon className="w-5 h-5 text-slate-400" />}
+                </button>
+              </div>
+            </div>
+
+            {isRegistering && (
+              <div>
+                <label htmlFor="confirm-password" className="block text-sm font-semibold text-slate-900 dark:text-white">Confirm Password</label>
+                <div className="relative">
+                  <LockClosedIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    id="confirm-password"
+                    required
+                    className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Confirm your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <EyeSlashIcon className="w-5 h-5 text-slate-400" /> : <EyeIcon className="w-5 h-5 text-slate-400" />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-300 text-sm font-medium rounded-lg px-4 py-3">
+                {error}
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+              className="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 transition-all shadow-lg disabled:opacity-50"
             >
-              {isLoading
-                ? isRegistering
-                  ? 'Creating Account...'
-                  : 'Signing in...'
-                : isRegistering
-                ? 'Create Account'
-                : 'Sign in'}
+              {isLoading ? (isRegistering ? 'Creating Account...' : 'Signing In...') : (isRegistering ? 'Create Account' : 'Sign In')}
             </button>
-          </div>
-        </form>
+          </form>
+        </div>
+
+        <p className="text-center text-xs text-slate-500 dark:text-slate-400">
+          By continuing, you agree to our Terms of Service and Privacy Policy
+        </p>
       </div>
     </div>
   );

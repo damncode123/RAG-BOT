@@ -91,18 +91,21 @@ export const chat = {
   // Get all messages from a specific conversation
   async getChatHistory(chatId: string) {
     const response = await api.get(`/conversations/${chatId}/messages`);
-    return response.data.messages;
+    return response.data;
   },
 
   // Fetch user's conversation list (optionally limited)
-  async getConversations(email: string, limit: number = 30) {
-    const response = await api.get('/conversations', {
-      params: {
-        email,
-        limit,
-      },
-    });
+  async getConversations() {
+    const response = await api.get('/conversations');
+    console.log('Conversations fetched:', response.data);
+
     return response.data.conversations;
+  },
+
+  // Delete a conversation
+  async deleteConversation(conversationId: string) {
+    const response = await api.delete(`/conversations/${conversationId}`);
+    return response.data;
   }
 };
 
@@ -112,9 +115,14 @@ export const chat = {
 
 export const files = {
   // Upload a file to the backend
-  async uploadFile(file: File) {
+  async uploadFile(file: File, conversationId?: string) {
     const formData = new FormData();
     formData.append('file', file); // Add file to form data
+
+    // Add conversation ID if provided
+    if (conversationId) {
+      formData.append('conversation_id', conversationId);
+    }
 
     // Send request with multipart/form-data headers
     const response = await api.post('/upload', formData, {

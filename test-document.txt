@@ -1,0 +1,16 @@
+This is a test document for the RAG Bot upload functionality.
+
+The document contains information about:
+- File upload processing
+- Card-style responses
+- Conversation integration
+- Real-time status updates
+
+When this document is uploaded, it should:
+1. Show a processing card in the conversation
+2. Process the document in the background
+3. Create embeddings in Pinecone
+4. Show a success card when complete
+5. Allow immediate querying of the document content
+
+This test will verify that the new upload card functionality works correctly.
